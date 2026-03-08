@@ -1,0 +1,20 @@
+FROM debian:bookworm-slim
+
+ARG FDB_VERSION=7.4.6
+ARG TARGETARCH
+
+# Install FDB client library only — no server binaries
+# This image is used as the base for:
+#   - ghcr.io/foundryfabric/foundationdb (adds fdbserver + init)
+#   - ffsrv runtime stage (adds the server binary)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    FDB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "amd64") && \
+    wget -qO /tmp/fdb-clients.deb \
+      "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-clients_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
+    dpkg -i /tmp/fdb-clients.deb && \
+    rm /tmp/fdb-clients.deb && \
+    apt-get remove -y wget && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

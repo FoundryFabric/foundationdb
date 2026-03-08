@@ -1,11 +1,12 @@
-FROM debian:bookworm-slim
-
 ARG FDB_VERSION=7.4.6
+FROM ghcr.io/foundryfabric/foundationdb-base:${FDB_VERSION}
+
+ARG FDB_VERSION
 ARG TARGETARCH
 
-# Install FDB server + tini for proper signal handling
+# Add fdbserver + tini on top of the client base
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget ca-certificates tini && \
+    apt-get install -y --no-install-recommends wget tini && \
     FDB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "amd64") && \
     wget -qO /tmp/fdb-server.deb \
       "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-server_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
