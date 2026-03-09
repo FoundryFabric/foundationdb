@@ -30,9 +30,19 @@ RUN apt-get update && \
     # fdbserver lives in /usr/sbin/ in some versions, /usr/bin/ in others
     (cp /tmp/fdb-server/usr/sbin/fdbserver /usr/bin/fdbserver 2>/dev/null || \
      cp /tmp/fdb-server/usr/bin/fdbserver  /usr/bin/fdbserver) && \
+    # fdbbackup/fdbrestore may be in server or clients package
+    (cp /tmp/fdb-server/usr/bin/fdbbackup  /usr/bin/fdbbackup  2>/dev/null || \
+     cp /tmp/fdb-clients/usr/bin/fdbbackup /usr/bin/fdbbackup  2>/dev/null || true) && \
+    (cp /tmp/fdb-server/usr/bin/fdbrestore  /usr/bin/fdbrestore  2>/dev/null || \
+     cp /tmp/fdb-clients/usr/bin/fdbrestore /usr/bin/fdbrestore 2>/dev/null || true) && \
     cp /tmp/fdb-clients/usr/bin/fdbcli /usr/bin/fdbcli && \
+    # libfdb_c.so — needed by the init container --copy-library mode
+    find /tmp/fdb-clients -name "libfdb_c.so*" -exec cp {} /usr/lib/ \; && \
+    ldconfig && \
     rm -rf /tmp/fdb-server.deb /tmp/fdb-clients.deb /tmp/fdb-server /tmp/fdb-clients && \
     chmod +x /usr/bin/fdb-kubernetes-monitor /usr/bin/fdbserver /usr/bin/fdbcli && \
+    ([ -f /usr/bin/fdbbackup  ] && chmod +x /usr/bin/fdbbackup  || true) && \
+    ([ -f /usr/bin/fdbrestore ] && chmod +x /usr/bin/fdbrestore || true) && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
     apt-get clean && \
