@@ -106,7 +106,6 @@ jobs:
   monitor:
     name: Build fdb-kubernetes-monitor (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: []
     strategy:
       matrix:
         include:
@@ -125,6 +124,24 @@ jobs:
           else
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Download fdb-kubernetes-monitor binary (amd64 — extract from official image)
+        if: matrix.arch == 'amd64'
+        run: |
+          CONTAINER=$(docker create foundationdb/fdb-kubernetes-monitor:${{ steps.version.outputs.tag }})
+          docker cp ${CONTAINER}:/usr/bin/fdb-kubernetes-monitor ./fdbkubernetesmonitor
+          docker rm ${CONTAINER}
+          chmod +x fdbkubernetesmonitor
+
+      - name: Download fdb-kubernetes-monitor binary (arm64 — native build from release)
+        if: matrix.arch == 'arm64'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ steps.version.outputs.tag }} \
+            --pattern "fdbkubernetesmonitor-linux-arm64" \
+            --output fdbkubernetesmonitor
+          chmod +x fdbkubernetesmonitor
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
