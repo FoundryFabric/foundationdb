@@ -19,6 +19,9 @@ ARG TARGETARCH
 # Pre-downloaded by CI — correct binary for this arch
 COPY fdbkubernetesmonitor /usr/bin/fdb-kubernetes-monitor
 
+# Required by the monitor binary at startup and by --mode init
+RUN mkdir -p /var/fdb && echo "${FDB_VERSION}" > /var/fdb/version
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget ca-certificates && \
     FDB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "amd64") && \
