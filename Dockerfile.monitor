@@ -39,8 +39,13 @@ RUN apt-get update && \
     (cp /tmp/fdb-server/usr/bin/fdbrestore  /usr/bin/fdbrestore  2>/dev/null || \
      cp /tmp/fdb-clients/usr/bin/fdbrestore /usr/bin/fdbrestore 2>/dev/null || true) && \
     cp /tmp/fdb-clients/usr/bin/fdbcli /usr/bin/fdbcli && \
-    # libfdb_c.so — needed by the init container --copy-library mode
+    # libfdb_c.so — needed by the init container --copy-library mode.
+    # The monitor binary looks for /usr/lib/fdb/multiversion/libfdb_c_X.Y.so
+    # where X.Y is the major.minor extracted from the FDB version string.
+    MAJOR_MINOR=$(echo "${FDB_VERSION}" | cut -d. -f1-2) && \
+    mkdir -p /usr/lib/fdb/multiversion && \
     find /tmp/fdb-clients -name "libfdb_c.so*" -exec cp {} /usr/lib/ \; && \
+    find /tmp/fdb-clients -name "libfdb_c.so*" -exec cp {} "/usr/lib/fdb/multiversion/libfdb_c_${MAJOR_MINOR}.so" \; && \
     ldconfig && \
     rm -rf /tmp/fdb-server.deb /tmp/fdb-clients.deb /tmp/fdb-server /tmp/fdb-clients && \
     chmod +x /usr/bin/fdb-kubernetes-monitor /usr/bin/fdbserver /usr/bin/fdbcli && \
