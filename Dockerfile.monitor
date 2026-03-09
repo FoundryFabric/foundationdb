@@ -1,0 +1,54 @@
+# fdb-kubernetes-monitor image — multi-platform (amd64 + arm64)
+#
+# amd64: binaries copied from official foundationdb/fdb-kubernetes-monitor image
+# arm64: fdb-kubernetes-monitor from FoundryFabric native build; fdbserver/fdbcli from .deb
+#
+# Used by the FDB operator to manage FoundationDB process pods.
+# Configured via spec.mainContainer.imageSource.baseImage in FoundationDBCluster.
+
+ARG FDB_VERSION=7.4.6
+
+# ── amd64 source ─────────────────────────────────────────────────────────────
+# Pull the official image on amd64 to extract its binaries.
+# On arm64 runners this stage is still fetched (image pull is platform-agnostic)
+# but its COPY outputs are only used when TARGETARCH=amd64.
+FROM --platform=linux/amd64 foundationdb/fdb-kubernetes-monitor:${FDB_VERSION} AS official-amd64
+
+# ── final image ───────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+ARG FDB_VERSION=7.4.6
+ARG TARGETARCH
+
+# Copy amd64 binaries from official image (unused on arm64 builds)
+COPY --from=official-amd64 /usr/bin/fdb-kubernetes-monitor /tmp/fdb-kubernetes-monitor-amd64
+COPY --from=official-amd64 /usr/bin/fdbserver              /tmp/fdbserver-amd64
+COPY --from=official-amd64 /usr/bin/fdbcli                 /tmp/fdbcli-amd64
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      # arm64: fdb-kubernetes-monitor from our native FoundryFabric release
+      wget -qO /usr/bin/fdb-kubernetes-monitor \
+        "https://github.com/FoundryFabric/foundationdb/releases/download/${FDB_VERSION}/fdbkubernetesmonitor-linux-arm64" && \
+      # arm64: fdbserver + fdbcli from official ARM64 .deb
+      wget -qO /tmp/fdb-server.deb \
+        "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-server_${FDB_VERSION}-1_aarch64.deb" && \
+      dpkg-deb -x /tmp/fdb-server.deb /tmp/fdb-extract && \
+      cp /tmp/fdb-extract/usr/sbin/fdbserver /usr/bin/fdbserver && \
+      cp /tmp/fdb-extract/usr/bin/fdbcli     /usr/bin/fdbcli && \
+      rm -rf /tmp/fdb-server.deb /tmp/fdb-extract; \
+    else \
+      # amd64: use binaries copied from official image above
+      mv /tmp/fdb-kubernetes-monitor-amd64 /usr/bin/fdb-kubernetes-monitor && \
+      mv /tmp/fdbserver-amd64              /usr/bin/fdbserver && \
+      mv /tmp/fdbcli-amd64                 /usr/bin/fdbcli; \
+    fi && \
+    rm -f /tmp/fdb-kubernetes-monitor-amd64 /tmp/fdbserver-amd64 /tmp/fdbcli-amd64 && \
+    chmod +x /usr/bin/fdb-kubernetes-monitor /usr/bin/fdbserver /usr/bin/fdbcli && \
+    apt-get remove -y wget && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/usr/bin/fdb-kubernetes-monitor"]
