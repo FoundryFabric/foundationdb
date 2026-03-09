@@ -12,7 +12,7 @@ RUN apt-get update && \
     FDB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "amd64") && \
     wget -qO /tmp/fdb-server.deb \
       "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-server_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
-    dpkg --ignore-scripts -i /tmp/fdb-server.deb && \
+    dpkg-deb -x /tmp/fdb-server.deb / && \
     rm /tmp/fdb-server.deb && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
