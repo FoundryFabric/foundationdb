@@ -22,14 +22,16 @@ COPY fdbkubernetesmonitor /usr/bin/fdb-kubernetes-monitor
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget ca-certificates && \
     FDB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "amd64") && \
-    wget -qO /tmp/fdb-server.deb \
-      "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-server_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
-    dpkg-deb -x /tmp/fdb-server.deb /tmp/fdb-extract && \
+    BASE="https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}" && \
+    wget -qO /tmp/fdb-server.deb  "${BASE}/foundationdb-server_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
+    wget -qO /tmp/fdb-clients.deb "${BASE}/foundationdb-clients_${FDB_VERSION}-1_${FDB_ARCH}.deb" && \
+    dpkg-deb -x /tmp/fdb-server.deb  /tmp/fdb-server && \
+    dpkg-deb -x /tmp/fdb-clients.deb /tmp/fdb-clients && \
     # fdbserver lives in /usr/sbin/ in some versions, /usr/bin/ in others
-    (cp /tmp/fdb-extract/usr/sbin/fdbserver /usr/bin/fdbserver 2>/dev/null || \
-     cp /tmp/fdb-extract/usr/bin/fdbserver  /usr/bin/fdbserver) && \
-    cp /tmp/fdb-extract/usr/bin/fdbcli /usr/bin/fdbcli && \
-    rm -rf /tmp/fdb-server.deb /tmp/fdb-extract && \
+    (cp /tmp/fdb-server/usr/sbin/fdbserver /usr/bin/fdbserver 2>/dev/null || \
+     cp /tmp/fdb-server/usr/bin/fdbserver  /usr/bin/fdbserver) && \
+    cp /tmp/fdb-clients/usr/bin/fdbcli /usr/bin/fdbcli && \
+    rm -rf /tmp/fdb-server.deb /tmp/fdb-clients.deb /tmp/fdb-server /tmp/fdb-clients && \
     chmod +x /usr/bin/fdb-kubernetes-monitor /usr/bin/fdbserver /usr/bin/fdbcli && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
