@@ -133,14 +133,27 @@ jobs:
           docker rm ${CONTAINER}
           chmod +x fdbkubernetesmonitor
 
-      - name: Download fdb-kubernetes-monitor binary (arm64 — native build from release)
+      - name: Download fdb-kubernetes-monitor binary (arm64)
         if: matrix.arch == 'arm64'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download ${{ steps.version.outputs.tag }} \
-            --pattern "fdbkubernetesmonitor-linux-arm64" \
-            --output fdbkubernetesmonitor
+          # Try our FoundryFabric release first (has native arm64 binary for 7.4+).
+          # Fall back to extracting from the official upstream image (works for 7.3.x
+          # which already ships native ARM64 support).
+          if gh release download ${{ steps.version.outputs.tag }} \
+              --pattern "fdbkubernetesmonitor-linux-arm64" \
+              --output fdbkubernetesmonitor 2>/dev/null; then
+            echo "Using native arm64 binary from FoundryFabric release"
+          else
+            echo "No release binary found; extracting from official arm64 image"
+            docker pull --platform linux/arm64 \
+              foundationdb/fdb-kubernetes-monitor:${{ steps.version.outputs.tag }}
+            CONTAINER=$(docker create --platform linux/arm64 \
+              foundationdb/fdb-kubernetes-monitor:${{ steps.version.outputs.tag }})
+            docker cp ${CONTAINER}:/usr/bin/fdb-kubernetes-monitor ./fdbkubernetesmonitor
+            docker rm ${CONTAINER}
+          fi
           chmod +x fdbkubernetesmonitor
 
       - name: Set up Docker Buildx
